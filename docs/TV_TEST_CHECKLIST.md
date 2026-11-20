@@ -1,49 +1,43 @@
-# JBrowser 2.0.0 Android TV test checklist
+# JBrowser 2.1.0 Android TV test checklist
 
-## First launch
-- [ ] Install on an Android TV / TV box running Android 8.0 or newer.
-- [ ] Confirm the homepage opens without a crash.
-- [ ] Confirm large shortcut tiles respond to D-pad focus and OK.
-- [ ] Confirm the address bar opens the TV keyboard and navigates to HTTPS sites.
+## Install and ABI
+- [ ] Confirm Android 8.0 / API 26 or newer.
+- [ ] Identify the device ABI (arm64-v8a, armeabi-v7a, x86 or x86_64).
+- [ ] Install only the matching APK.
+- [ ] Record downloaded APK size and installed storage usage.
+
+## First launch and TV UI
+- [ ] Confirm homepage opens without a crash.
+- [ ] Confirm shortcut tiles respond to D-pad focus and OK.
+- [ ] Confirm address bar opens the TV keyboard.
+- [ ] Confirm remote pointer is visible and moves with the D-pad.
+- [ ] Confirm OK/Enter clicks at the pointer location.
 
 ## Browser engine and desktop mode
-- [ ] Open a desktop website (e.g. Wikipedia or a news site).
-- [ ] Confirm desktop layout is requested by default.
-- [ ] Use the toolbar to switch to mobile mode and back to desktop mode.
-- [ ] Check back, forward, reload and homepage controls.
-
-## Remote pointer
-- [ ] Confirm the pointer is visible over websites by default.
-- [ ] Move it with D-pad arrows.
-- [ ] Click links and buttons with OK / Enter.
-- [ ] Toggle pointer mode off and confirm normal browser navigation is available.
-- [ ] Test with a physical USB/Bluetooth mouse if available.
-
-## Tabs and bookmarks
-- [ ] Open multiple tabs and switch between them.
-- [ ] Open a link with target=_blank and confirm a new tab is created.
-- [ ] Close a tab and verify the remaining tabs still work.
-- [ ] Bookmark a page and reopen it.
-- [ ] Open a private tab and confirm it uses GeckoView private mode.
+- [ ] Open a desktop website and confirm desktop layout by default.
+- [ ] Switch to mobile mode and back to desktop mode.
+- [ ] Test back, forward, reload, homepage and fullscreen video.
 
 ## Extensions
 - [ ] Open the Extensions screen.
-- [ ] Browse the Firefox Add-ons directory.
-- [ ] Install a Mozilla-signed, GeckoView-compatible XPI file.
-- [ ] Confirm the permission prompt identifies requested permissions and host access.
-- [ ] Verify an installed extension appears in the manager.
-- [ ] Enable, disable and uninstall an extension.
-- [ ] Confirm an extension requiring unsupported APIs is rejected or reported gracefully.
+- [ ] Install a Mozilla-signed GeckoView-compatible XPI.
+- [ ] Verify permission prompts.
+- [ ] Enable, disable, open options and uninstall an extension.
+- [ ] Confirm unsupported add-ons fail gracefully.
 - [ ] Do not expect Chrome Web Store extension support.
 
-## Media and site compatibility
-- [ ] Test YouTube playback and fullscreen.
-- [ ] Test audio/video on another streaming site.
-- [ ] Verify playback and maximum quality are limited by the TV hardware, DRM support and provider.
-- [ ] Confirm JBrowser itself does not block ads; no built-in ad blocker is included.
+## Tabs, bookmarks and media
+- [ ] Open and switch among multiple tabs.
+- [ ] Close a tab and verify remaining sessions.
+- [ ] Add and reopen a bookmark.
+- [ ] Test YouTube playback and a second video site.
+- [ ] Test fullscreen and media keys.
+- [ ] Confirm DRM, codecs and maximum resolution are device/provider dependent.
+- [ ] Confirm JBrowser itself does not block ads.
 
-## Stability
-- [ ] Test on a 2 GB RAM TV box and observe memory usage.
-- [ ] Test switching between six tabs.
-- [ ] Test returning to JBrowser after backgrounding the app.
-- [ ] Test app rotation / TV display mode changes if the device supports them.
+## Performance and stability
+- [ ] Compare cold-start time with 2.0.0.
+- [ ] Observe memory usage with one, three and six tabs.
+- [ ] Observe available storage after installation (compressed .so files are extracted).
+- [ ] Background and resume the browser.
+- [ ] Check that extension functionality remains intact in the optimized release.

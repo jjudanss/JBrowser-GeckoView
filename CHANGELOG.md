@@ -1,32 +1,28 @@
 # Changelog
 
+## 2.1.0 — GeckoView size-optimized release
+
+- Added ABI-specific APK outputs for ARM64, ARMv7, x86 and x86_64.
+- Disabled universal APK generation so each download contains only one native engine architecture.
+- Enabled R8 code shrinking and Android resource shrinking for release builds.
+- Enabled compressed native-library packaging to reduce APK download size; Android extracts native libraries during install, so installed storage may be larger.
+- Changed GitHub Actions to build optimized signed release APKs, verify the ABI included in each APK, print file sizes, and publish all four APKs to GitHub Releases.
+- Updated app version to 2.1.0 / version code 8.
+- Preserved GeckoView, compatible Firefox WebExtensions, desktop mode, remote pointer and TV homepage.
+- Continued to exclude the built-in ad blocker.
+
+### Size caveat
+
+Actual APK sizes are not known until GitHub Actions completes the first 2.1.0 build. No under-100-MB guarantee is made. GeckoView native binaries dominate the package and are not reduced by R8.
+
 ## 2.0.0 — GeckoView edition
 
 - Replaced Android System WebView with Mozilla GeckoView stable 160.0.20261116130455.
-- Removed the built-in AdBlockEngine, bundled filter domains, and filter-list updater.
-- Added WebExtension installation and management using GeckoView's WebExtensionController APIs.
-- Added user permission prompts for extension installs, optional permissions and updates.
-- Added installation from local Mozilla-signed `.xpi` files and direct HTTPS `.xpi` URLs.
-- Added management controls for installed extensions: enable, disable, options and uninstall.
-- Added a visible on-screen pointer controlled by Android TV D-pad arrows and OK/Enter clicks.
-- Replaced the previous homepage with a cleaner TV layout and large website shortcut tiles.
-- Made desktop user-agent and desktop viewport the default, with a desktop/mobile toggle.
-- Increased minimum Android version from API 23 to API 26 to match GeckoView requirements.
-- Retained tabs, bookmarks, private tabs and a physical-keyboard shortcut set.
-
-### Compatibility notes
-
-- GeckoView does not run Chrome Web Store extensions.
-- Firefox WebExtensions must be compatible with GeckoView; not every add-on is supported.
-- Remote XPI packages must be Mozilla-signed.
-- Video formats, DRM and maximum resolution remain device/provider dependent.
-- The universal APK is substantially larger because GeckoView bundles a full browser engine.
+- Removed built-in ad blocking.
+- Added compatible Firefox WebExtension management, remote pointer and desktop-first browsing.
+- Set minimum Android version to API 26.
 
 ## 1.5.0 — Previous WebView release
 
-- Added web file-upload support, user-initiated new tabs, media-autoplay preference and improved filter matching.
-- This version used Android System WebView and a partial built-in filter engine. That engine was removed in 2.0.0.
-
-## 1.4.0 and earlier
-
-See the git history for earlier TV toolbar, tab, homepage, download, history, bookmark and filter-engine work. Older validation notes are historical and do not apply to the GeckoView 2.0.0 build.
+- Added file uploads, user-initiated new tabs, autoplay preference and enhanced filter matching.
+- Used Android System WebView and a partial built-in filter engine; this engine was removed in 2.0.0.

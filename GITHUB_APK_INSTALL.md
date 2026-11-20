@@ -1,32 +1,16 @@
-# Build and install JBrowser 2.0.0 from GitHub
+# Downloading JBrowser 2.1.0
 
-## Repository contents
+The GitHub Actions workflow creates four separate APK artifacts and, on a `v*` tag, attaches them to a GitHub Release.
 
-Make sure the repository root contains:
+Choose only one APK matching the TV's CPU ABI:
 
-- `.github/workflows/build-apk.yml`
-- `app/`
-- `build.gradle`
-- `settings.gradle`
-- `gradle.properties`
+- **ARM64:** `JBrowser-2.1.0-Android-TV-arm64-v8a.apk` — most modern ARM64 Android TVs.
+- **ARMv7:** `JBrowser-2.1.0-Android-TV-armeabi-v7a.apk` — older 32-bit ARM Android TVs.
+- **x86:** `JBrowser-2.1.0-Android-TV-x86.apk` — 32-bit Intel/AMD Android devices.
+- **x86_64:** `JBrowser-2.1.0-Android-TV-x86_64.apk` — 64-bit Intel/AMD devices and emulators.
 
-## Build
+Check the device's ABI with AIDA64 or another hardware-information app. Do not assume that CPU model alone implies the OS ABI.
 
-1. Open the repository's **Actions** tab.
-2. Select **Build JBrowser GeckoView Android TV APK**.
-3. Open the latest successful workflow run.
-4. Under **Artifacts**, download `JBrowser-2.0.0-Android-TV`.
-5. Extract the artifact ZIP. It contains `JBrowser-2.0.0-Android-TV.apk`.
+After the first build, check the file sizes in the GitHub Actions build log. No exact size is guaranteed before the workflow produces the APKs.
 
-## Release
-
-Create a Git tag named `v2.0.0` and push it. The workflow builds the APK and attaches it to a prerelease on the repository's Releases page.
-
-## Install
-
-1. Transfer the APK to the Android TV or download it directly on the TV.
-2. Open it with a file manager.
-3. Allow installation from that file manager if Android asks.
-4. Select Install.
-
-Minimum supported OS: Android 8.0 (API 26). The workflow produces a debug-signed testing APK. Configure a persistent release keystore before distributing production updates.
+The APKs are release variants with R8 and resource shrinking enabled, signed with a temporary GitHub runner debug key. Uninstall a differently signed older build if Android rejects an update. For repeatable upgrades, configure a persistent signing keystore as repository secrets; never commit keystore files or passwords to a public repository.

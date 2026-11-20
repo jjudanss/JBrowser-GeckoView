@@ -1,74 +1,72 @@
 # JBrowser for Android TV
 
-**Current source version: 2.0.0 (GeckoView edition)**
+**Current source version: 2.1.0 (GeckoView edition, per-ABI optimized)**
 
-JBrowser 2.0 is a major browser-engine change. It replaces Android System WebView with Mozilla GeckoView, removes JBrowser's built-in ad-blocking engine, adds a remote-controlled mouse pointer, and requests desktop websites by default.
+JBrowser is an Android TV browser powered by Mozilla GeckoView. It supports compatible Firefox WebExtensions, a remote-controlled on-screen pointer, desktop browsing by default, and a TV-oriented homepage. The built-in ad blocker was removed in 2.0.0.
 
-## Version 2.0.0 highlights
+## 2.1.0 size and packaging changes
 
-- **Mozilla GeckoView engine:** bundles Mozilla's Gecko browser engine rather than relying on the TV's installed Android System WebView.
-- **Firefox WebExtensions:** extension manager can open Firefox Add-ons, install a Mozilla-signed `.xpi` file, install from a direct HTTPS `.xpi` URL, list installed extensions, enable/disable them, open their options page, and uninstall them.
-- **Permission prompts:** JBrowser asks before granting extension permissions and lists the requested website access.
-- **TV pointer:** D-pad arrows move a visible on-screen mouse pointer; OK/Enter clicks at the pointer location. Toggle pointer mode from the toolbar.
-- **Desktop-first browsing:** sessions default to GeckoView's desktop user-agent and desktop viewport. A toolbar control can switch to mobile mode.
-- **Clean homepage:** large TV-friendly shortcuts, a simple hero area, and quick links to extensions and bookmarks.
-- **Tabs and bookmarks:** multiple tabs, a tab switcher, bookmarks and private tabs remain available.
-- **No built-in ad blocker:** the old JBrowser filter engine, filter lists and request interception have been removed. A user may install a compatible extension that provides content blocking, subject to extension compatibility.
+- Generates separate APKs for `arm64-v8a`, `armeabi-v7a`, `x86`, and `x86_64`.
+- No universal APK is generated; each APK contains exactly one CPU architecture.
+- Release builds enable R8 code shrinking and Android resource shrinking.
+- Native GeckoView libraries are compressed in the downloaded APK to prioritize download size. Android extracts those libraries during installation, so installed storage usage may be higher than the APK download size.
+- The GitHub workflow verifies that each APK contains exactly one ABI and uploads four separate artifacts.
 
-## Important extension compatibility notes
+**Important:** The individual APK sizes have not yet been measured. The 2.1.0 build must run in GitHub Actions before actual download sizes can be reported. GeckoView's native engine remains the largest part of the app; R8 cannot meaningfully shrink those native binaries.
 
-JBrowser uses GeckoView's WebExtensions APIs. This is **not** a full Firefox-for-Android installation and does **not** support Chrome Web Store extensions. Only extensions compatible with GeckoView can run. Regular remote `.xpi` installs must be Mozilla-signed; unsigned packages are rejected by GeckoView. Some add-ons may depend on Firefox UI or APIs that an embedded GeckoView browser does not expose, so they may not work even if they are Firefox WebExtensions.
+## Choose the correct APK
 
-The extension manager offers:
+| APK | Device architecture |
+|---|---|
+| `JBrowser-2.1.0-Android-TV-arm64-v8a.apk` | Most modern 64-bit ARM Android TVs and TV boxes |
+| `JBrowser-2.1.0-Android-TV-armeabi-v7a.apk` | Older 32-bit ARM Android TVs and TV boxes |
+| `JBrowser-2.1.0-Android-TV-x86.apk` | 32-bit Intel/AMD Android devices |
+| `JBrowser-2.1.0-Android-TV-x86_64.apk` | 64-bit Intel/AMD Android devices and emulators |
 
-1. Firefox Add-ons website.
-2. Install from a local `.xpi` file.
-3. Install from a direct HTTPS `.xpi` URL.
-4. Manage installed extensions (enable, disable, open options, uninstall).
+Install only the APK matching the device's supported ABI. For a device check, use AIDA64 or a similar system-information app and look at Android/System ABI information. Sony X80J models are expected to use ARM64, but confirm the device's reported ABI before choosing.
 
-The Add-ons website's in-page installation flow depends on the site's GeckoView compatibility. Installing a downloaded Mozilla-signed `.xpi` from the extension manager is the fallback path.
+## Features
 
-## Android compatibility
+- Mozilla GeckoView browser engine.
+- Compatible, Mozilla-signed Firefox WebExtensions; not every Firefox add-on works and Chrome Web Store extensions are not supported.
+- Extension manager: install from Firefox Add-ons, local signed XPI, or direct HTTPS XPI URL; manage installed extensions.
+- Visible remote pointer controlled by D-pad and OK/Enter.
+- Desktop user-agent and desktop viewport by default, with mobile-mode toggle.
+- Clean TV homepage with large shortcuts.
+- Tabs, bookmarks, private tabs and video playback, subject to device/provider capabilities.
+- No built-in ad blocker or bundled filter lists.
 
-- **Minimum Android version: 8.0 (API 26).** Mozilla's current GeckoView requires Android 8.0 or newer.
-- Compile/target SDK: Android 16 / API 36.
+## Compatibility
+
+- Minimum Android: 8.0 / API 26.
+- Compile SDK: Android API 37.0 preview channel used by the current build configuration.
+- Target SDK: 36.
 - Java: 17.
-- GeckoView stable: `160.0.20261116130455`.
-- A single universal APK is built; GeckoView includes a substantial native browser engine, so the APK is much larger than the old WebView build.
-- Video codecs, 4K/8K, HDR, DRM and hardware decoding still depend on the TV hardware, Android version, GeckoView support and streaming provider.
+- GeckoView: `160.0.20261116130455`.
+- GeckoView-supported ABIs: ARMv7, ARM64, x86 and x86_64.
+- Video codecs, DRM, HDR and maximum resolution depend on the TV hardware, Android release, GeckoView and streaming provider.
 
-## Build a single APK on GitHub
+## Build on GitHub
 
-The repository includes `.github/workflows/build-apk.yml`.
+1. Upload the complete project to the repository root, including `.github/workflows/build-apk.yml`.
+2. A push to `main` or `master`, or a manual workflow dispatch, builds four optimized release APKs.
+3. Download the matching ABI artifact from the Actions run. Each artifact downloads as a ZIP containing one APK.
+4. To publish all four APKs on a GitHub Release, create and push a tag named `v2.1.0`.
 
-1. Upload the complete project contents to the repository root (including `app/`, `docs/`, Gradle files and `.github/workflows/build-apk.yml`).
-2. Push to `main` or `master`, or run the workflow manually from the **Actions** tab.
-3. After the workflow succeeds, download the `JBrowser-2.0.0-Android-TV` artifact. The downloaded artifact is a ZIP containing the APK.
-4. To publish a GitHub Release, create and push a tag named `v2.0.0`. The workflow attaches `JBrowser-2.0.0-Android-TV.apk` to the release.
+No Android Studio is required on your computer when using GitHub Actions.
 
-You do not need Android Studio on your own computer when using GitHub Actions.
+## Signing and upgrades
 
-### Signing note
-
-The workflow creates a debug-signed testing APK. A persistent release keystore is required for repeatable in-place upgrades. Do not commit a keystore or its passwords to a public repository; configure them as GitHub Actions secrets before distributing production releases.
+The current workflow signs release-test APKs with the runner's debug key for easy side-loading. A persistent signing key is required for seamless in-place updates. Never commit a private keystore or passwords to a public repository; configure them as GitHub Actions secrets before production distribution. Because each hosted runner has its own temporary debug key, uninstalling an older build may be required before installing this build.
 
 ## Controls
 
-- D-pad arrows: move the pointer while pointer mode is on.
+- D-pad arrows: move the on-screen pointer while pointer mode is enabled.
 - OK / Enter: click at the pointer.
-- Page Up / Page Down or Channel Up / Channel Down: scroll the page when supported by the remote.
-- Toggle pointer mode from the pointer toolbar button.
-- Back: navigate back or return to the homepage.
-- Ctrl+T: new tab; Ctrl+W: close current tab; Ctrl+L: address bar; Ctrl+R: reload (physical keyboard).
-- Toolbar: Back, Forward, Reload, Home, Tabs, Pointer, Desktop/Mobile, Extensions, Bookmark, More.
+- Page Up / Page Down or Channel Up / Channel Down: scroll when exposed by the remote.
+- Back: navigate back or return to homepage.
+- Physical keyboard: Ctrl+T new tab; Ctrl+W close tab; Ctrl+L address bar; Ctrl+R reload.
 
-## Project layout
+## Size testing
 
-- `app/src/main/java/com/jbrowser/tv/MainActivity.java` — GeckoView browser shell, tabs, TV pointer and extension manager.
-- `app/src/main/java/com/jbrowser/tv/BookmarkStore.java` — bookmarks and encrypted private bookmarks.
-- `app/src/main/AndroidManifest.xml` — Android TV launcher and browser declarations.
-- `.github/workflows/build-apk.yml` — GitHub Actions APK build/release workflow.
-
-## Build locally (optional)
-
-Open the project in Android Studio with JDK 17 and Android SDK Platform 36 installed. The debug APK is generated at `app/build/outputs/apk/debug/app-debug.apk`.
+The workflow prints the compressed size of each produced APK in its log. Compare the actual output of 2.1.0 against the previous 500 MB universal APK. The size reduction is expected to come mainly from ABI splitting and native-library compression, not R8.

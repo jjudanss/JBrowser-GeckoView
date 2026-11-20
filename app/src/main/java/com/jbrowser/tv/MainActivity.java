@@ -51,8 +51,8 @@ import java.util.Locale;
 
 /** JBrowser 2.0: GeckoView-powered, desktop-first browser designed for Android TV. */
 public class MainActivity extends Activity {
-    private static final int VERSION_CODE = 7;
-    private static final String VERSION_NAME = "2.0.0";
+    private static final int VERSION_CODE = 8;
+    private static final String VERSION_NAME = "2.1.0";
     private static final int MAX_TABS = 6;
     private static final int REQUEST_EXTENSION_FILE = 2401;
 

@@ -1,7 +1,7 @@
-# Built-in ad blocking removed in JBrowser 2.0.0
+# Built-in content filtering status
 
-JBrowser 2.0.0 no longer includes its own ad-blocking or tracker-blocking engine. The old `AdBlockEngine.java`, bundled filter domains and filter-update code have been removed.
+JBrowser 2.0.0 and later do not bundle an ad-blocking or tracker-blocking engine, filter lists, or filter-update service.
 
-Users who want content blocking can try installing a GeckoView-compatible Firefox WebExtension through the Extensions screen. Add-on compatibility is not guaranteed, and JBrowser does not support Chrome Web Store extensions.
+Users can choose to install a GeckoView-compatible, Mozilla-signed Firefox WebExtension that provides content filtering. Not every Firefox extension is compatible with GeckoView. Chrome Web Store extensions are not supported.
 
-This file is retained only to explain the change from JBrowser 1.x.
+This file is retained for historical context from JBrowser 1.x only.

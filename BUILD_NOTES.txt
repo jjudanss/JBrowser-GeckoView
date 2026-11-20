@@ -1,23 +1,29 @@
-JBrowser 2.0.0 — GeckoView edition
+JBrowser 2.1.0 — GeckoView size-optimized edition
 
-Browser engine: Mozilla GeckoView 160.0.20261116130455 (stable)
 Application ID: com.jbrowser.tv
-Version code: 7
-Version name: 2.0.0
+Version code: 8
+Version name: 2.1.0
 Minimum Android: 8.0 / API 26
-Compile / target SDK: 36
+Compile SDK: 37.0 preview channel
+Target SDK: 36
 Java: 17
+Android Gradle Plugin: 9.1.1
+Gradle: 9.3.1
+GeckoView: 160.0.20261116130455
 
-Major migration:
-- WebView and AdBlockEngine removed.
-- GeckoView now provides the browser engine.
-- Built-in ad blocking and bundled filter lists removed.
-- Compatible Mozilla-signed Firefox WebExtensions can be installed and managed.
-- Chrome Web Store extensions are not supported.
-- Remote mouse pointer is controlled by the TV D-pad; OK clicks; Page/Channel Up/Down scroll.
-- Desktop user-agent and viewport are enabled by default.
+APK outputs (one ABI per APK):
+- arm64-v8a
+- armeabi-v7a
+- x86
+- x86_64
 
-Build command: gradle --no-daemon clean assembleDebug
-APK: app/build/outputs/apk/debug/app-debug.apk
+No universal APK is generated. Native libraries are compressed to reduce download size and extracted at installation, increasing installed storage usage. Release builds enable R8 and resource shrinking. GeckoView's native engine remains the primary size factor and is not meaningfully reduced by R8.
 
-The GitHub Actions workflow builds a debug-signed universal APK. Android SDK and Gradle are not installed in this authoring environment, so a full compile and real-TV test still need to be performed by GitHub Actions and on a physical device.
+GitHub Actions builds optimized signed release APKs with:
+  gradle --no-daemon clean assembleRelease
+
+The workflow checks APK contents to ensure exactly one ABI is packaged in each output. Actual APK sizes will be printed in the workflow log after the first successful build.
+
+The release is signed with a temporary runner debug key for testing. A persistent private signing key should be configured through GitHub Actions secrets before public distribution.
+
+A full Android build and real-device tests have not been run in this authoring environment.
