@@ -15,11 +15,11 @@ permissions:
 
 jobs:
   build-apks:
-    name: Build optimized per-ABI APKs
+    name: Build optimized GeckoView APKs
     runs-on: ubuntu-24.04
 
     steps:
-      - name: Checkout source code
+      - name: Checkout source
         uses: actions/checkout@v4
 
       - name: Set up Java 17
@@ -33,7 +33,7 @@ jobs:
         with:
           packages: 'platform-tools'
 
-      - name: Install Android 17 Preview SDK
+      - name: Install Android SDK 37
         run: |
           sdkmanager --install --channel=3 \
             "platforms;android-37.0" \
@@ -44,23 +44,26 @@ jobs:
         with:
           gradle-version: '9.3.1'
 
-      - name: Build optimized release APKs
+      - name: Build release APKs
         run: gradle --no-daemon --stacktrace clean assembleRelease
 
-      - name: Collect and verify APKs
+      - name: Collect and verify three APKs
         shell: bash
         run: |
           set -euo pipefail
+
           mkdir -p dist
           shopt -s nullglob
 
           apks=(app/build/outputs/apk/release/*.apk)
 
-          if [ ${#apks[@]} -ne 4 ]; then
-            echo "Expected four ABI APKs. Found: ${#apks[@]}"
+          if [ ${#apks[@]} -ne 3 ]; then
+            echo "Expected 3 APKs, found ${#apks[@]}"
             ls -lh app/build/outputs/apk/release/ || true
             exit 1
           fi
+
+          declare -A seen=()
 
           for apk in "${apks[@]}"; do
             mapfile -t abis < <(
@@ -70,14 +73,15 @@ jobs:
             )
 
             if [ ${#abis[@]} -ne 1 ]; then
-              echo "Invalid ABI packaging in $apk"
+              echo "Invalid native ABI packaging: $apk"
+              unzip -Z1 "$apk" | grep '^lib/' || true
               exit 1
             fi
 
             abi="${abis[0]}"
 
             case "$abi" in
-              arm64-v8a|armeabi-v7a|x86|x86_64)
+              arm64-v8a|armeabi-v7a|x86_64)
                 ;;
               *)
                 echo "Unexpected ABI: $abi"
@@ -85,18 +89,28 @@ jobs:
                 ;;
             esac
 
-            cp "$apk" "dist/JBrowser-2.1.0-Android-TV-${abi}.apk"
+            if [[ -n "${seen[$abi]:-}" ]]; then
+              echo "Duplicate ABI: $abi"
+              exit 1
+            fi
 
-            echo "APK: $abi"
+            seen[$abi]=1
+
+            cp "$apk" \
+              "dist/JBrowser-2.1.0-Android-TV-${abi}.apk"
+
+            echo "Verified $abi"
             du -h "dist/JBrowser-2.1.0-Android-TV-${abi}.apk"
           done
 
-          for abi in arm64-v8a armeabi-v7a x86 x86_64; do
-            test -f "dist/JBrowser-2.1.0-Android-TV-${abi}.apk"
+          for abi in arm64-v8a armeabi-v7a x86_64; do
+            test -n "${seen[$abi]:-}" || {
+              echo "Missing APK for $abi"
+              exit 1
+            }
           done
 
-          echo "All four architecture APKs verified."
-          ls -lh dist/
+          echo "All three APKs verified successfully."
 
       - name: Upload ARM64 APK
         uses: actions/upload-artifact@v4
@@ -114,14 +128,6 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Upload x86 APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: JBrowser-2.1.0-x86
-          path: dist/JBrowser-2.1.0-Android-TV-x86.apk
-          if-no-files-found: error
-          retention-days: 30
-
       - name: Upload x86_64 APK
         uses: actions/upload-artifact@v4
         with:
@@ -130,7 +136,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Publish APKs to GitHub Releases
+      - name: Publish GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
@@ -139,19 +145,17 @@ jobs:
           body: |
             JBrowser 2.1.0 GeckoView edition.
 
-            Choose the APK matching your device:
-            - ARM64: modern 64-bit ARM TVs.
-            - ARMv7: older 32-bit ARM TVs.
-            - x86: 32-bit Intel devices.
-            - x86_64: 64-bit Intel devices.
+            Available architectures:
+            - ARM64
+            - ARMv7
+            - x86_64
 
-            Each APK contains one CPU architecture.
+            Each APK contains one architecture only.
             Android 8.0 or newer required.
             Debug-signed test build.
           files: |
             dist/JBrowser-2.1.0-Android-TV-arm64-v8a.apk
             dist/JBrowser-2.1.0-Android-TV-armeabi-v7a.apk
-            dist/JBrowser-2.1.0-Android-TV-x86.apk
             dist/JBrowser-2.1.0-Android-TV-x86_64.apk
           prerelease: true
         env:
