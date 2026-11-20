@@ -33,7 +33,7 @@ jobs:
         with:
           packages: 'platform-tools'
 
-      - name: Install Android SDK 37
+      - name: Install Android 17 Preview SDK
         run: |
           sdkmanager --install --channel=3 \
             "platforms;android-37.0" \
@@ -47,70 +47,41 @@ jobs:
       - name: Build release APKs
         run: gradle --no-daemon --stacktrace clean assembleRelease
 
-      - name: Collect and verify three APKs
+      - name: Collect and verify APKs
         shell: bash
         run: |
           set -euo pipefail
-
           mkdir -p dist
-          shopt -s nullglob
 
-          apks=(app/build/outputs/apk/release/*.apk)
+          collect_apk() {
+            abi="$1"
+            source="app/build/outputs/apk/release/app-${abi}-release.apk"
+            output="dist/JBrowser-2.1.0-Android-TV-${abi}.apk"
 
-          if [ ${#apks[@]} -ne 3 ]; then
-            echo "Expected 3 APKs, found ${#apks[@]}"
-            ls -lh app/build/outputs/apk/release/ || true
-            exit 1
-          fi
+            test -f "$source"
 
-          declare -A seen=()
-
-          for apk in "${apks[@]}"; do
-            mapfile -t abis < <(
-              unzip -Z1 "$apk" |
+            mapfile -t found_abis < <(
+              unzip -Z1 "$source" |
               awk -F/ '$1 == "lib" && $3 ~ /\.so$/ {print $2}' |
               sort -u
             )
 
-            if [ ${#abis[@]} -ne 1 ]; then
-              echo "Invalid native ABI packaging: $apk"
-              unzip -Z1 "$apk" | grep '^lib/' || true
+            if [ "${#found_abis[@]}" -ne 1 ] || [ "${found_abis[0]}" != "$abi" ]; then
+              echo "ABI verification failed: $source"
               exit 1
             fi
 
-            abi="${abis[0]}"
+            cp "$source" "$output"
+            echo "Verified $abi:"
+            du -h "$output"
+          }
 
-            case "$abi" in
-              arm64-v8a|armeabi-v7a|x86_64)
-                ;;
-              *)
-                echo "Unexpected ABI: $abi"
-                exit 1
-                ;;
-            esac
+          collect_apk arm64-v8a
+          collect_apk armeabi-v7a
+          collect_apk x86_64
 
-            if [[ -n "${seen[$abi]:-}" ]]; then
-              echo "Duplicate ABI: $abi"
-              exit 1
-            fi
-
-            seen[$abi]=1
-
-            cp "$apk" \
-              "dist/JBrowser-2.1.0-Android-TV-${abi}.apk"
-
-            echo "Verified $abi"
-            du -h "dist/JBrowser-2.1.0-Android-TV-${abi}.apk"
-          done
-
-          for abi in arm64-v8a armeabi-v7a x86_64; do
-            test -n "${seen[$abi]:-}" || {
-              echo "Missing APK for $abi"
-              exit 1
-            }
-          done
-
-          echo "All three APKs verified successfully."
+          echo "All three APKs successfully collected."
+          ls -lh dist/
 
       - name: Upload ARM64 APK
         uses: actions/upload-artifact@v4
@@ -145,12 +116,12 @@ jobs:
           body: |
             JBrowser 2.1.0 GeckoView edition.
 
-            Available architectures:
+            Available downloads:
             - ARM64
             - ARMv7
             - x86_64
 
-            Each APK contains one architecture only.
+            Each APK contains one CPU architecture.
             Android 8.0 or newer required.
             Debug-signed test build.
           files: |
