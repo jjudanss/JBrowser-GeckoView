@@ -1,5 +1,5 @@
 
-name: Build JBrowser GeckoView Android TV APK
+name: Build JBrowser GeckoView Android TV APKs
 
 on:
   push:
@@ -14,8 +14,8 @@ permissions:
   contents: write
 
 jobs:
-  build-apk:
-    name: Build JBrowser 2.0 APK
+  build-apks:
+    name: Build optimized per-ABI APKs
     runs-on: ubuntu-24.04
 
     steps:
@@ -39,50 +39,120 @@ jobs:
             "platforms;android-37.0" \
             "build-tools;37.0.0"
 
-      - name: Accept Android SDK licenses
-        run: yes | sdkmanager --licenses
-
       - name: Set up Gradle 9.3.1
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.3.1'
 
-      - name: Build JBrowser
-        run: gradle --no-daemon --stacktrace clean assembleDebug
+      - name: Build optimized release APKs
+        run: gradle --no-daemon --stacktrace clean assembleRelease
 
-      - name: Prepare APK
+      - name: Collect and verify APKs
+        shell: bash
         run: |
+          set -euo pipefail
           mkdir -p dist
-          cp app/build/outputs/apk/debug/app-debug.apk \
-            dist/JBrowser-2.0.0-Android-TV.apk
+          shopt -s nullglob
 
-      - name: Upload APK artifact
+          apks=(app/build/outputs/apk/release/*.apk)
+
+          if [ ${#apks[@]} -ne 4 ]; then
+            echo "Expected four ABI APKs. Found: ${#apks[@]}"
+            ls -lh app/build/outputs/apk/release/ || true
+            exit 1
+          fi
+
+          for apk in "${apks[@]}"; do
+            mapfile -t abis < <(
+              unzip -Z1 "$apk" |
+              awk -F/ '$1 == "lib" && $3 ~ /\.so$/ {print $2}' |
+              sort -u
+            )
+
+            if [ ${#abis[@]} -ne 1 ]; then
+              echo "Invalid ABI packaging in $apk"
+              exit 1
+            fi
+
+            abi="${abis[0]}"
+
+            case "$abi" in
+              arm64-v8a|armeabi-v7a|x86|x86_64)
+                ;;
+              *)
+                echo "Unexpected ABI: $abi"
+                exit 1
+                ;;
+            esac
+
+            cp "$apk" "dist/JBrowser-2.1.0-Android-TV-${abi}.apk"
+
+            echo "APK: $abi"
+            du -h "dist/JBrowser-2.1.0-Android-TV-${abi}.apk"
+          done
+
+          for abi in arm64-v8a armeabi-v7a x86 x86_64; do
+            test -f "dist/JBrowser-2.1.0-Android-TV-${abi}.apk"
+          done
+
+          echo "All four architecture APKs verified."
+          ls -lh dist/
+
+      - name: Upload ARM64 APK
         uses: actions/upload-artifact@v4
         with:
-          name: JBrowser-2.0.0-Android-TV
-          path: dist/JBrowser-2.0.0-Android-TV.apk
+          name: JBrowser-2.1.0-ARM64
+          path: dist/JBrowser-2.1.0-Android-TV-arm64-v8a.apk
           if-no-files-found: error
           retention-days: 30
 
-      - name: Publish GitHub Release
+      - name: Upload ARMv7 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: JBrowser-2.1.0-ARMv7
+          path: dist/JBrowser-2.1.0-Android-TV-armeabi-v7a.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload x86 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: JBrowser-2.1.0-x86
+          path: dist/JBrowser-2.1.0-Android-TV-x86.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload x86_64 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: JBrowser-2.1.0-x86_64
+          path: dist/JBrowser-2.1.0-Android-TV-x86_64.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish APKs to GitHub Releases
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: JBrowser ${{ github.ref_name }} for Android TV
           body: |
-            JBrowser 2.0.0 GeckoView edition.
+            JBrowser 2.1.0 GeckoView edition.
 
-            - GeckoView browser engine.
-            - Compatible Firefox WebExtensions.
-            - Remote-controlled mouse pointer.
-            - Desktop browsing by default.
-            - Redesigned TV homepage.
-            - Built-in ad blocker removed.
+            Choose the APK matching your device:
+            - ARM64: modern 64-bit ARM TVs.
+            - ARMv7: older 32-bit ARM TVs.
+            - x86: 32-bit Intel devices.
+            - x86_64: 64-bit Intel devices.
 
-            Requires Android 8.0 or newer.
+            Each APK contains one CPU architecture.
+            Android 8.0 or newer required.
             Debug-signed test build.
-          files: dist/JBrowser-2.0.0-Android-TV.apk
+          files: |
+            dist/JBrowser-2.1.0-Android-TV-arm64-v8a.apk
+            dist/JBrowser-2.1.0-Android-TV-armeabi-v7a.apk
+            dist/JBrowser-2.1.0-Android-TV-x86.apk
+            dist/JBrowser-2.1.0-Android-TV-x86_64.apk
           prerelease: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
