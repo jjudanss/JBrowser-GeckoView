@@ -1,6 +1,14 @@
+
 pluginManagement {
     repositories {
         google()
+
+        // Google Cloud mirror of Maven Central
+        maven {
+            name = "GoogleMavenCentralMirror"
+            url = uri("https://maven-central-asia.storage-download.googleapis.com/maven2/")
+        }
+
         mavenCentral()
         gradlePluginPortal()
     }
@@ -8,10 +16,22 @@ pluginManagement {
 
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+
     repositories {
         google()
+
+        // Google Cloud mirror of Maven Central
+        maven {
+            name = "GoogleMavenCentralMirror"
+            url = uri("https://maven-central-asia.storage-download.googleapis.com/maven2/")
+        }
+
         mavenCentral()
-        maven { url 'https://maven.mozilla.org/maven2/' }
+
+        // Mozilla GeckoView repository
+        maven {
+            url = uri("https://maven.mozilla.org/maven2/")
+        }
     }
 }
 
