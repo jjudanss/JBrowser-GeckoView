@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-24.04
 
     steps:
-      - name: Check out source
+      - name: Checkout source code
         uses: actions/checkout@v4
 
       - name: Set up Java 17
@@ -27,23 +27,22 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-          cache: gradle
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
         with:
           packages: 'platform-tools'
 
-      - name: Install Android SDK 36
+      - name: Install Android SDK 37
         run: |
           sdkmanager --install \
-            "platforms;android-36" \
+            "platforms;android-37" \
             "build-tools;36.0.0"
 
-      - name: Set up Gradle 8.13
+      - name: Set up Gradle 9.3.1
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.13'
+          gradle-version: '9.3.1'
 
       - name: Build JBrowser
         run: gradle --no-daemon --stacktrace clean assembleDebug
@@ -54,7 +53,7 @@ jobs:
           cp app/build/outputs/apk/debug/app-debug.apk \
             dist/JBrowser-2.0.0-Android-TV.apk
 
-      - name: Upload APK artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: JBrowser-2.0.0-Android-TV
@@ -62,24 +61,24 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Publish APK to GitHub Releases
+      - name: Publish GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: JBrowser ${{ github.ref_name }} for Android TV
           body: |
-            JBrowser 2.0.0 is a GeckoView-powered Android TV browser.
+            JBrowser 2.0.0 GeckoView edition.
 
             Features:
-            - Mozilla GeckoView engine.
+            - GeckoView browser engine.
             - Compatible Firefox WebExtensions.
-            - Visible remote-controlled mouse pointer.
+            - Remote-controlled mouse pointer.
             - Desktop browsing by default.
             - Redesigned TV homepage.
             - Built-in ad blocker removed.
 
-            Android 8.0 or newer required.
+            Requires Android 8.0 or newer.
             Debug-signed test build.
           files: dist/JBrowser-2.0.0-Android-TV.apk
           prerelease: true
