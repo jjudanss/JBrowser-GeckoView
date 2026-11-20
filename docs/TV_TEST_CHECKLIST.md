@@ -1,43 +1,45 @@
-# JBrowser 2.1.0 Android TV test checklist
+# JBrowser 2.2.0 Android TV test checklist
 
-## Install and ABI
+## Installation and compatibility
 - [ ] Confirm Android 8.0 / API 26 or newer.
-- [ ] Identify the device ABI (arm64-v8a, armeabi-v7a, x86 or x86_64).
-- [ ] Install only the matching APK.
-- [ ] Record downloaded APK size and installed storage usage.
+- [ ] Confirm device ABI and install the matching APK.
+- [ ] Confirm the TV launcher displays the JBrowser icon and banner.
+- [ ] Record the APK download size and Android-reported installed app size.
 
-## First launch and TV UI
-- [ ] Confirm homepage opens without a crash.
-- [ ] Confirm shortcut tiles respond to D-pad focus and OK.
-- [ ] Confirm address bar opens the TV keyboard.
-- [ ] Confirm remote pointer is visible and moves with the D-pad.
-- [ ] Confirm OK/Enter clicks at the pointer location.
+## Remote pointer and clicks
+- [ ] D-pad moves the visible pointer in all directions.
+- [ ] Pointer movement remains responsive during repeated key presses.
+- [ ] OK / D-pad Center clicks a visible website button.
+- [ ] OK / Select activates search fields, search buttons, links and video controls.
+- [ ] Enter, remote A/Select, and supported keyboard Enter also click.
+- [ ] Pointer toggle returns to normal D-pad page navigation.
+- [ ] Page Up/Down or supported Channel Up/Down scrolls the page.
+- [ ] A Bluetooth/USB mouse (if attached) still works normally.
 
-## Browser engine and desktop mode
-- [ ] Open a desktop website and confirm desktop layout by default.
-- [ ] Switch to mobile mode and back to desktop mode.
-- [ ] Test back, forward, reload, homepage and fullscreen video.
+## Desktop browsing
+- [ ] Desktop mode is enabled on first launch.
+- [ ] Google and a few ordinary desktop sites display at a usable desktop scale.
+- [ ] Mobile mode toggle works and can be switched back.
+- [ ] Address bar, back, forward, reload, home and tabs work.
+- [ ] New-tab links open within the tab limit.
 
-## Extensions
-- [ ] Open the Extensions screen.
-- [ ] Install a Mozilla-signed GeckoView-compatible XPI.
-- [ ] Verify permission prompts.
-- [ ] Enable, disable, open options and uninstall an extension.
-- [ ] Confirm unsupported add-ons fail gracefully.
-- [ ] Do not expect Chrome Web Store extension support.
+## Firefox WebExtensions and uBlock Origin
+- [ ] Extensions menu opens.
+- [ ] Install / open uBlock Origin points to the official Mozilla Add-ons XPI.
+- [ ] Mozilla signature validation succeeds.
+- [ ] Permission dialog is displayed and can be approved or cancelled using the remote.
+- [ ] uBlock Origin appears in the installed extension list.
+- [ ] Extension enable, disable, options and uninstall actions work.
+- [ ] Test a variety of sites; do not assume every uBlock feature or every YouTube ad is blocked by GeckoView.
 
-## Tabs, bookmarks and media
-- [ ] Open and switch among multiple tabs.
-- [ ] Close a tab and verify remaining sessions.
-- [ ] Add and reopen a bookmark.
-- [ ] Test YouTube playback and a second video site.
-- [ ] Test fullscreen and media keys.
-- [ ] Confirm DRM, codecs and maximum resolution are device/provider dependent.
-- [ ] Confirm JBrowser itself does not block ads.
+## Memory and responsiveness
+- [ ] Open three tabs and switch between them.
+- [ ] Inactive tab playback suspends.
+- [ ] The app remains responsive after switching tabs several times.
+- [ ] Observe RAM use and any renderer crashes on low-memory TVs.
 
-## Performance and stability
-- [ ] Compare cold-start time with 2.0.0.
-- [ ] Observe memory usage with one, three and six tabs.
-- [ ] Observe available storage after installation (compressed .so files are extracted).
-- [ ] Background and resume the browser.
-- [ ] Check that extension functionality remains intact in the optimized release.
+## Video
+- [ ] Test standard HTML5 video.
+- [ ] Test fullscreen entry and exit.
+- [ ] Test sound, pause/play and seeking where supported.
+- [ ] Note that DRM, 4K, HDR and codec support depend on the device and streaming provider.

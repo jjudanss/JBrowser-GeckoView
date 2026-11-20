@@ -1,7 +1,7 @@
-# Built-in content filtering status
+# Built-in ad blocking removed
 
-JBrowser 2.0.0 and later do not bundle an ad-blocking or tracker-blocking engine, filter lists, or filter-update service.
+JBrowser 2.2.0 does not include a built-in ad-blocking engine or bundled filter lists. The previous WebView-era filter source notes no longer apply.
 
-Users can choose to install a GeckoView-compatible, Mozilla-signed Firefox WebExtension that provides content filtering. Not every Firefox extension is compatible with GeckoView. Chrome Web Store extensions are not supported.
+Users may optionally install the official Mozilla Add-ons version of uBlock Origin from within JBrowser using **Extensions → Install / open uBlock Origin**. The extension is downloaded only after the user requests it and is not bundled in the base APK. GeckoView checks the Mozilla signature and displays the extension's permission prompt.
 
-This file is retained for historical context from JBrowser 1.x only.
+Not every Firefox WebExtension API is available in GeckoView. uBlock Origin compatibility and YouTube behavior must be tested on the actual GeckoView build; no extension guarantees that all ads, including all YouTube ads, will be blocked.

@@ -1,6 +1,9 @@
 package com.jbrowser.tv;
 
 import android.app.Activity;
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.animation.ValueAnimator;
 import android.app.AlertDialog;
 import android.content.Intent;
 import android.graphics.Canvas;
@@ -23,6 +26,7 @@ import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
+import android.view.animation.LinearInterpolator;
 import android.content.Context;
 import android.widget.EditText;
 import android.widget.FrameLayout;
@@ -49,11 +53,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-/** JBrowser 2.0: GeckoView-powered, desktop-first browser designed for Android TV. */
+/** JBrowser 2.2: GeckoView browser for Android TV with uBlock Origin and optimized TV pointer input. */
 public class MainActivity extends Activity {
-    private static final int VERSION_CODE = 8;
-    private static final String VERSION_NAME = "2.1.0";
-    private static final int MAX_TABS = 6;
+    private static final int VERSION_CODE = 10;
+    private static final String VERSION_NAME = "2.2.0";
+    private static final int MAX_TABS = 3;
+    private static final String UBLOCK_ORIGIN_ID = "uBlock0@raymondhill.net";
+    private static final String UBLOCK_ORIGIN_XPI = "https://addons.mozilla.org/firefox/downloads/latest/uBlock0@raymondhill.net/latest.xpi";
     private static final int REQUEST_EXTENSION_FILE = 2401;
 
     private static final int BG = Color.rgb(8, 13, 25);
@@ -91,6 +97,12 @@ public class MainActivity extends Activity {
     private boolean desktopMode = true;
     private float pointerX;
     private float pointerY;
+    private float pointerTargetX;
+    private float pointerTargetY;
+    private ValueAnimator pointerAnimator;
+    private boolean pointerHovering;
+    private long mouseDownTime;
+    private GeckoSession mouseDownSession;
     private String pendingInstallFileName;
 
     private static final class Tab {
@@ -285,7 +297,7 @@ public class MainActivity extends Activity {
 
     private Tab createTab(boolean privateTab) {
         if (tabs.size() >= MAX_TABS) {
-            toast("JBrowser supports up to " + MAX_TABS + " open tabs");
+            toast("For smoother TV performance, JBrowser supports up to " + MAX_TABS + " open tabs");
             return null;
         }
         GeckoSessionSettings sessionSettings = new GeckoSessionSettings.Builder()
@@ -393,12 +405,14 @@ public class MainActivity extends Activity {
             Tab old = tabs.get(activeTab);
             old.session.setActive(false);
             old.session.setFocused(false);
+            old.session.setPriorityHint(GeckoSession.PRIORITY_DEFAULT);
             runtime.getWebExtensionController().setTabActive(old.session, false);
         }
         activeTab = index;
         Tab selected = tabs.get(index);
         selected.session.setActive(true);
         selected.session.setFocused(true);
+        selected.session.setPriorityHint(GeckoSession.PRIORITY_HIGH);
         geckoView.setSession(selected.session);
         runtime.getWebExtensionController().setTabActive(selected.session, true);
         addressBar.setText(selected.url);
@@ -410,6 +424,7 @@ public class MainActivity extends Activity {
     }
 
     private void showHome() {
+        sendHoverExit();
         if (activeTab >= 0 && activeTab < tabs.size()) tabs.get(activeTab).session.setActive(false);
         if (homeView != null) pageHost.removeView(homeView);
         homeView = buildHomeView();
@@ -417,7 +432,7 @@ public class MainActivity extends Activity {
         geckoView.setVisibility(View.GONE);
         pointerOverlay.setVisibility(View.GONE);
         addressBar.setText("");
-        statusView.setText("Ready · Desktop browsing enabled · No built-in ad blocker");
+        statusView.setText("Ready · Desktop browsing · Optional Firefox extensions");
         updateToolbar();
     }
 
@@ -501,7 +516,12 @@ public class MainActivity extends Activity {
         bottomRow.addView(addons, actionLp);
         bottomRow.addView(bookmarks, new LinearLayout.LayoutParams(0, -1, 1f));
 
-        TextView footer = label("No built-in ad blocker  ·  GeckoView engine  ·  Desktop mode by default", 12, MUTED, false);
+        TextView ublockAction = homeAction("🛡   Install / open uBlock Origin", "Official Firefox ad and tracker blocker · optional download", this::installOrOpenUBlockOrigin);
+        LinearLayout.LayoutParams ublockLp = new LinearLayout.LayoutParams(-1, dp(64));
+        ublockLp.topMargin = dp(10);
+        body.addView(ublockAction, ublockLp);
+
+        TextView footer = label("GeckoView engine  ·  Desktop mode  ·  Optional uBlock Origin extension", 12, MUTED, false);
         footer.setGravity(Gravity.CENTER_VERTICAL);
         LinearLayout.LayoutParams footerLp = new LinearLayout.LayoutParams(-1, dp(36));
         footerLp.topMargin = dp(12);
@@ -520,6 +540,7 @@ public class MainActivity extends Activity {
     }
 
     private void showBrowserSurface(boolean show) {
+        if (!show) sendHoverExit();
         if (homeView != null) {
             pageHost.removeView(homeView);
             homeView = null;
@@ -660,15 +681,61 @@ public class MainActivity extends Activity {
     }
 
     private void showExtensions() {
-        String[] actions = {"Get Firefox Add-ons", "Install from .xpi file", "Install from .xpi URL", "Manage installed extensions"};
+        String[] actions = {
+                "Install / open uBlock Origin",
+                "Get Firefox Add-ons",
+                "Install from .xpi file",
+                "Install from .xpi URL",
+                "Manage installed extensions"
+        };
         new AlertDialog.Builder(this).setTitle("JBrowser extensions")
-                .setMessage("JBrowser supports Mozilla-signed Firefox WebExtensions that are compatible with GeckoView. Not every Firefox add-on and Chrome extension is supported.")
+                .setMessage("JBrowser supports Mozilla-signed Firefox WebExtensions that are compatible with GeckoView. uBlock Origin is available as an optional official add-on. Chrome Web Store extensions are not supported.")
                 .setItems(actions, (dialog, which) -> {
-                    if (which == 0) navigate("https://addons.mozilla.org/en-US/android/");
-                    else if (which == 1) pickExtensionFile();
-                    else if (which == 2) promptExtensionUrl();
+                    if (which == 0) installOrOpenUBlockOrigin();
+                    else if (which == 1) navigate("https://addons.mozilla.org/en-US/android/");
+                    else if (which == 2) pickExtensionFile();
+                    else if (which == 3) promptExtensionUrl();
                     else listExtensions();
                 }).setNegativeButton("Close", null).show();
+    }
+
+    /** Install the official Mozilla-signed uBlock Origin XPI only after the user requests it. */
+    private void installOrOpenUBlockOrigin() {
+        runtime.getWebExtensionController().list().accept(extensions -> mainHandler.post(() -> {
+            WebExtension ublock = null;
+            if (extensions != null) {
+                for (WebExtension extension : extensions) {
+                    if (UBLOCK_ORIGIN_ID.equals(extension.id)) {
+                        ublock = extension;
+                        break;
+                    }
+                }
+            }
+            if (ublock == null) {
+                installExtensionUri(UBLOCK_ORIGIN_XPI, WebExtensionController.INSTALLATION_METHOD_MANAGER);
+                return;
+            }
+            WebExtension existing = ublock;
+            if (existing.metaData != null && !existing.metaData.enabled) {
+                runtime.getWebExtensionController().enable(existing, WebExtensionController.EnableSource.USER)
+                        .accept(enabled -> mainHandler.post(() -> openUBlockDashboard(enabled)),
+                                error -> mainHandler.post(() -> toast("Could not enable uBlock Origin: " + shortError(error))));
+            } else {
+                openUBlockDashboard(existing);
+            }
+        }), error -> mainHandler.post(() -> toast("Could not check installed extensions: " + shortError(error))));
+    }
+
+    private void openUBlockDashboard(WebExtension extension) {
+        WebExtension.MetaData meta = extension == null ? null : extension.metaData;
+        if (meta != null && meta.optionsPageUrl != null && !meta.optionsPageUrl.isEmpty()) {
+            navigate(meta.optionsPageUrl);
+        } else {
+            new AlertDialog.Builder(this).setTitle("uBlock Origin is installed")
+                    .setMessage("uBlock Origin is enabled. Open Extensions → Manage installed extensions to view its available settings.")
+                    .setPositiveButton("Manage extensions", (d, w) -> listExtensions())
+                    .setNegativeButton("Close", null).show();
+        }
     }
 
     private void pickExtensionFile() {
@@ -792,34 +859,48 @@ public class MainActivity extends Activity {
             WebExtension extension, String[] permissions, String[] origins, String[] dataPermissions) {
         GeckoResult<WebExtension.PermissionPromptResponse> result = new GeckoResult<>();
         String message = buildPermissionMessage(permissions, origins, dataPermissions);
-        new AlertDialog.Builder(this).setTitle("Install " + extensionName(extension) + "?")
-                .setMessage(message + "\n\nOnly approve an extension if you trust its developer.")
-                .setNegativeButton("Cancel", (d, w) -> result.complete(new WebExtension.PermissionPromptResponse(false, false, false)))
-                .setPositiveButton("Approve permissions", (d, w) -> result.complete(new WebExtension.PermissionPromptResponse(true, false, false)))
-                .setOnCancelListener(d -> result.complete(new WebExtension.PermissionPromptResponse(false, false, false)))
-                .show();
+        mainHandler.post(() -> {
+            if (isFinishing() || isDestroyed()) {
+                result.complete(new WebExtension.PermissionPromptResponse(false, false, false));
+                return;
+            }
+            new AlertDialog.Builder(MainActivity.this).setTitle("Install " + extensionName(extension) + "?")
+                    .setMessage(message + "\n\nOnly approve an extension if you trust its developer.")
+                    .setNegativeButton("Cancel", (d, w) -> result.complete(new WebExtension.PermissionPromptResponse(false, false, false)))
+                    .setPositiveButton("Approve permissions", (d, w) -> result.complete(new WebExtension.PermissionPromptResponse(true, false, false)))
+                    .setOnCancelListener(d -> result.complete(new WebExtension.PermissionPromptResponse(false, false, false)))
+                    .show();
+        });
         return result;
     }
 
     private GeckoResult<AllowOrDeny> promptOptionalPermissions(WebExtension extension, String[] permissions,
                                                                 String[] origins, String[] dataPermissions) {
         GeckoResult<AllowOrDeny> result = new GeckoResult<>();
-        new AlertDialog.Builder(this).setTitle("Additional permissions")
-                .setMessage(extensionName(extension) + " requests:\n\n" + buildPermissionMessage(permissions, origins, dataPermissions))
-                .setNegativeButton("Deny", (d, w) -> result.complete(AllowOrDeny.DENY))
-                .setPositiveButton("Allow", (d, w) -> result.complete(AllowOrDeny.ALLOW))
-                .setOnCancelListener(d -> result.complete(AllowOrDeny.DENY)).show();
+        String message = extensionName(extension) + " requests:\n\n" + buildPermissionMessage(permissions, origins, dataPermissions);
+        mainHandler.post(() -> {
+            if (isFinishing() || isDestroyed()) { result.complete(AllowOrDeny.DENY); return; }
+            new AlertDialog.Builder(MainActivity.this).setTitle("Additional permissions")
+                    .setMessage(message)
+                    .setNegativeButton("Deny", (d, w) -> result.complete(AllowOrDeny.DENY))
+                    .setPositiveButton("Allow", (d, w) -> result.complete(AllowOrDeny.ALLOW))
+                    .setOnCancelListener(d -> result.complete(AllowOrDeny.DENY)).show();
+        });
         return result;
     }
 
     private GeckoResult<AllowOrDeny> promptUpdatePermissions(WebExtension extension, String[] permissions,
                                                               String[] origins, String[] dataPermissions) {
         GeckoResult<AllowOrDeny> result = new GeckoResult<>();
-        new AlertDialog.Builder(this).setTitle("Extension update permissions")
-                .setMessage(extensionName(extension) + " requests new permissions:\n\n" + buildPermissionMessage(permissions, origins, dataPermissions))
-                .setNegativeButton("Do not update", (d, w) -> result.complete(AllowOrDeny.DENY))
-                .setPositiveButton("Approve update", (d, w) -> result.complete(AllowOrDeny.ALLOW))
-                .setOnCancelListener(d -> result.complete(AllowOrDeny.DENY)).show();
+        String message = extensionName(extension) + " requests new permissions:\n\n" + buildPermissionMessage(permissions, origins, dataPermissions);
+        mainHandler.post(() -> {
+            if (isFinishing() || isDestroyed()) { result.complete(AllowOrDeny.DENY); return; }
+            new AlertDialog.Builder(MainActivity.this).setTitle("Extension update permissions")
+                    .setMessage(message)
+                    .setNegativeButton("Do not update", (d, w) -> result.complete(AllowOrDeny.DENY))
+                    .setPositiveButton("Approve update", (d, w) -> result.complete(AllowOrDeny.ALLOW))
+                    .setOnCancelListener(d -> result.complete(AllowOrDeny.DENY)).show();
+        });
         return result;
     }
 
@@ -852,6 +933,7 @@ public class MainActivity extends Activity {
     private void togglePointerMode() {
         pointerMode = !pointerMode;
         getPreferences(MODE_PRIVATE).edit().putBoolean("pointer_mode", pointerMode).apply();
+        if (!pointerMode) sendHoverExit();
         pointerOverlay.setVisibility(pointerMode && geckoView.getVisibility() == View.VISIBLE ? View.VISIBLE : View.GONE);
         updateToolbar();
         toast(pointerMode ? "Remote pointer enabled · arrows move · OK clicks" : "Remote pointer off · use normal page navigation");
@@ -885,7 +967,7 @@ public class MainActivity extends Activity {
                 Tab privateTab = createTab(true);
                 if (privateTab != null) activateTab(tabs.indexOf(privateTab));
             } else new AlertDialog.Builder(this).setTitle("JBrowser " + VERSION_NAME)
-                    .setMessage("A desktop-first Android TV browser powered by Mozilla GeckoView. Supports compatible, Mozilla-signed Firefox WebExtensions. Built-in ad blocking has been removed.\n\nMinimum Android version: 8.0 (API 26).")
+                    .setMessage("A desktop-first Android TV browser powered by Mozilla GeckoView. Supports compatible, Mozilla-signed Firefox WebExtensions, including uBlock Origin. No custom ad-blocking engine is bundled; uBlock Origin is downloaded from Mozilla Add-ons when requested.\n\nMinimum Android version: 8.0 (API 26).")
                     .setPositiveButton("OK", null).show();
         }).setNegativeButton("Close", null).show();
     }
@@ -904,34 +986,119 @@ public class MainActivity extends Activity {
     }
 
     private void resetPointer() {
+        if (pointerAnimator != null) {
+            pointerAnimator.cancel();
+            pointerAnimator = null;
+        }
         pointerX = Math.max(dp(30), pageHost.getWidth() / 2f);
         pointerY = Math.max(dp(30), pageHost.getHeight() / 2f);
+        pointerTargetX = pointerX;
+        pointerTargetY = pointerY;
         updatePointer();
+        sendHoverMove();
     }
 
     private void movePointer(int keyCode, int repeat) {
         if (pointerX <= 0 || pointerY <= 0) resetPointer();
-        float step = dp(repeat > 0 ? 34 : 22);
-        if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) pointerX -= step;
-        else if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) pointerX += step;
-        else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) pointerY -= step;
-        else if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) pointerY += step;
-        pointerX = Math.max(dp(2), Math.min(pageHost.getWidth() - dp(2), pointerX));
-        pointerY = Math.max(dp(2), Math.min(pageHost.getHeight() - dp(2), pointerY));
-        updatePointer();
-        sendMouseEvent(MotionEvent.ACTION_HOVER_MOVE, 0);
+
+        // Smaller D-pad increments are easier to position on TV-sized controls.
+        // Held keys accelerate gently without making the cursor jump across the page.
+        float step = dp(repeat > 2 ? 17 : (repeat > 0 ? 14 : 11));
+        float baseX = pointerAnimator != null ? pointerTargetX : pointerX;
+        float baseY = pointerAnimator != null ? pointerTargetY : pointerY;
+        float targetX = baseX;
+        float targetY = baseY;
+        if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) targetX -= step;
+        else if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) targetX += step;
+        else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) targetY -= step;
+        else if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) targetY += step;
+
+        pointerTargetX = Math.max(dp(2), Math.min(pageHost.getWidth() - dp(2), targetX));
+        pointerTargetY = Math.max(dp(2), Math.min(pageHost.getHeight() - dp(2), targetY));
+        animatePointerTo(pointerTargetX, pointerTargetY);
+    }
+
+    private void animatePointerTo(float targetX, float targetY) {
+        if (pointerAnimator != null) pointerAnimator.cancel();
+        final float startX = pointerX;
+        final float startY = pointerY;
+        final boolean[] cancelled = {false};
+        final ValueAnimator animator = ValueAnimator.ofFloat(0f, 1f);
+        pointerAnimator = animator;
+        animator.setDuration(55L);
+        animator.setInterpolator(new LinearInterpolator());
+        animator.addUpdateListener(value -> {
+            float t = (float) value.getAnimatedValue();
+            pointerX = startX + ((targetX - startX) * t);
+            pointerY = startY + ((targetY - startY) * t);
+            updatePointer();
+            // Keep animation drawing local. Send one Gecko hover event when movement settles,
+            // rather than allocating and dispatching a MotionEvent on every animation frame.
+        });
+        animator.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationCancel(Animator animation) {
+                cancelled[0] = true;
+            }
+
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                if (pointerAnimator == animator) pointerAnimator = null;
+                if (!cancelled[0]) sendHoverMove();
+            }
+        });
+        animator.start();
     }
 
     private void updatePointer() {
-        if (pointerOverlay != null) {
-            pointerOverlay.setPointer(pointerX, pointerY);
-            pointerOverlay.invalidate();
-        }
+        if (pointerOverlay != null) pointerOverlay.setPointer(pointerX, pointerY);
     }
 
     private void pointerClick() {
+        Tab tab = activeTab();
+        if (tab == null || geckoView.getVisibility() != View.VISIBLE || !tab.session.isOpen()) return;
+        if (pointerX <= 0 || pointerY <= 0) resetPointer();
+        if (pointerAnimator != null) {
+            pointerAnimator.cancel();
+            pointerAnimator = null;
+            pointerX = pointerTargetX;
+            pointerY = pointerTargetY;
+            updatePointer();
+        }
+        sendHoverMove();
         sendMouseEvent(MotionEvent.ACTION_DOWN, MotionEvent.BUTTON_PRIMARY);
-        sendMouseEvent(MotionEvent.ACTION_UP, 0);
+        // Keep the same GeckoSession and downTime for the full mouse click sequence.
+        mainHandler.postDelayed(() -> sendMouseEvent(MotionEvent.ACTION_UP, 0), 70L);
+    }
+
+    private void sendHoverMove() {
+        sendHoverEvent(pointerHovering ? MotionEvent.ACTION_HOVER_MOVE : MotionEvent.ACTION_HOVER_ENTER);
+        pointerHovering = true;
+    }
+
+    private void sendHoverExit() {
+        if (!pointerHovering) return;
+        sendHoverEvent(MotionEvent.ACTION_HOVER_EXIT);
+        pointerHovering = false;
+    }
+
+    private void sendHoverEvent(int action) {
+        Tab tab = activeTab();
+        if (tab == null || geckoView == null || geckoView.getVisibility() != View.VISIBLE || !tab.session.isOpen()) return;
+        long now = android.os.SystemClock.uptimeMillis();
+        MotionEvent.PointerProperties properties = new MotionEvent.PointerProperties();
+        properties.id = 0;
+        properties.toolType = MotionEvent.TOOL_TYPE_MOUSE;
+        MotionEvent.PointerCoords coordinates = new MotionEvent.PointerCoords();
+        coordinates.x = Math.max(0, pointerX);
+        coordinates.y = Math.max(0, pointerY);
+        coordinates.pressure = 0f;
+        coordinates.size = 1f;
+        MotionEvent event = MotionEvent.obtain(now, now, action, 1,
+                new MotionEvent.PointerProperties[]{properties}, new MotionEvent.PointerCoords[]{coordinates},
+                0, 0, 1f, 1f, 0, 0, android.view.InputDevice.SOURCE_MOUSE, 0);
+        tab.session.getPanZoomController().onMotionEvent(event);
+        event.recycle();
     }
 
     private void scrollPage(boolean pageUp) {
@@ -957,8 +1124,31 @@ public class MainActivity extends Activity {
 
     private void sendMouseEvent(int action, int buttons) {
         Tab tab = activeTab();
-        if (tab == null || geckoView.getVisibility() != View.VISIBLE || !tab.session.isOpen()) return;
+        if (geckoView.getVisibility() != View.VISIBLE) return;
+        GeckoSession targetSession;
         long now = android.os.SystemClock.uptimeMillis();
+        long downTime;
+
+        if (action == MotionEvent.ACTION_DOWN) {
+            if (tab == null || !tab.session.isOpen()) return;
+            targetSession = tab.session;
+            mouseDownSession = targetSession;
+            mouseDownTime = now;
+            downTime = now;
+        } else if (action == MotionEvent.ACTION_UP) {
+            targetSession = mouseDownSession;
+            if (targetSession == null || !targetSession.isOpen()) {
+                mouseDownSession = null;
+                mouseDownTime = 0L;
+                return;
+            }
+            downTime = mouseDownTime != 0L ? mouseDownTime : now;
+        } else {
+            if (tab == null || !tab.session.isOpen()) return;
+            targetSession = tab.session;
+            downTime = now;
+        }
+
         MotionEvent.PointerProperties properties = new MotionEvent.PointerProperties();
         properties.id = 0;
         properties.toolType = MotionEvent.TOOL_TYPE_MOUSE;
@@ -967,12 +1157,15 @@ public class MainActivity extends Activity {
         coordinates.y = Math.max(0, pointerY);
         coordinates.pressure = action == MotionEvent.ACTION_UP ? 0f : 1f;
         coordinates.size = 1f;
-        MotionEvent event = MotionEvent.obtain(now, now, action, 1,
+        MotionEvent event = MotionEvent.obtain(downTime, now, action, 1,
                 new MotionEvent.PointerProperties[]{properties}, new MotionEvent.PointerCoords[]{coordinates},
                 0, buttons, 1f, 1f, 0, 0, android.view.InputDevice.SOURCE_MOUSE, 0);
-        if (action == MotionEvent.ACTION_HOVER_MOVE) tab.session.getPanZoomController().onMotionEvent(event);
-        else tab.session.getPanZoomController().onMouseEvent(event);
+        targetSession.getPanZoomController().onMouseEvent(event);
         event.recycle();
+        if (action == MotionEvent.ACTION_UP) {
+            mouseDownTime = 0L;
+            mouseDownSession = null;
+        }
     }
 
     @Override
@@ -989,24 +1182,33 @@ public class MainActivity extends Activity {
             if (key == KeyEvent.KEYCODE_R) { reloadPage(); return true; }
         }
         if (pointerMode && geckoView != null && geckoView.getVisibility() == View.VISIBLE
-                && !addressBar.hasFocus() && event.getAction() == KeyEvent.ACTION_DOWN) {
+                && !addressBar.hasFocus()) {
             int key = event.getKeyCode();
-            if (key == KeyEvent.KEYCODE_DPAD_LEFT || key == KeyEvent.KEYCODE_DPAD_RIGHT
-                    || key == KeyEvent.KEYCODE_DPAD_UP || key == KeyEvent.KEYCODE_DPAD_DOWN) {
-                movePointer(key, event.getRepeatCount());
+            boolean selectKey = key == KeyEvent.KEYCODE_DPAD_CENTER || key == KeyEvent.KEYCODE_ENTER
+                    || key == KeyEvent.KEYCODE_BUTTON_A || key == KeyEvent.KEYCODE_BUTTON_SELECT
+                    || key == KeyEvent.KEYCODE_NUMPAD_ENTER || key == KeyEvent.KEYCODE_SPACE;
+            if (selectKey) {
+                if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
+                    pointerClick();
+                }
+                // Consume both halves of the remote's OK/select key so Gecko does not receive
+                // an unmatched key event after the synthetic mouse click.
                 return true;
             }
-            if (key == KeyEvent.KEYCODE_DPAD_CENTER || key == KeyEvent.KEYCODE_ENTER) {
-                pointerClick();
-                return true;
-            }
-            if (key == KeyEvent.KEYCODE_PAGE_UP || key == KeyEvent.KEYCODE_CHANNEL_UP) {
-                scrollPage(true);
-                return true;
-            }
-            if (key == KeyEvent.KEYCODE_PAGE_DOWN || key == KeyEvent.KEYCODE_CHANNEL_DOWN) {
-                scrollPage(false);
-                return true;
+            if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                if (key == KeyEvent.KEYCODE_DPAD_LEFT || key == KeyEvent.KEYCODE_DPAD_RIGHT
+                        || key == KeyEvent.KEYCODE_DPAD_UP || key == KeyEvent.KEYCODE_DPAD_DOWN) {
+                    movePointer(key, event.getRepeatCount());
+                    return true;
+                }
+                if (key == KeyEvent.KEYCODE_PAGE_UP || key == KeyEvent.KEYCODE_CHANNEL_UP) {
+                    scrollPage(true);
+                    return true;
+                }
+                if (key == KeyEvent.KEYCODE_PAGE_DOWN || key == KeyEvent.KEYCODE_CHANNEL_DOWN) {
+                    scrollPage(false);
+                    return true;
+                }
             }
         }
         return super.dispatchKeyEvent(event);
@@ -1037,6 +1239,10 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        if (pointerAnimator != null) pointerAnimator.cancel();
+        sendHoverExit();
+        mouseDownSession = null;
+        mouseDownTime = 0L;
         for (Tab tab : tabs) {
             try { tab.session.close(); } catch (Exception ignored) { }
         }
@@ -1128,7 +1334,18 @@ public class MainActivity extends Activity {
             stroke.setStrokeWidth(dp(2));
         }
 
-        void setPointer(float x, float y) { this.x = x; this.y = y; }
+        void setPointer(float x, float y) {
+            float oldX = this.x;
+            float oldY = this.y;
+            this.x = x;
+            this.y = y;
+            int margin = dp(38);
+            int left = (int) Math.floor(Math.min(oldX, x)) - margin;
+            int top = (int) Math.floor(Math.min(oldY, y)) - margin;
+            int right = (int) Math.ceil(Math.max(oldX, x)) + margin;
+            int bottom = (int) Math.ceil(Math.max(oldY, y)) + margin;
+            invalidate(left, top, right, bottom);
+        }
 
         @Override
         protected void onDraw(Canvas canvas) {

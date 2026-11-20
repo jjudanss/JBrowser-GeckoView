@@ -1,29 +1,24 @@
-JBrowser 2.1.0 — GeckoView size-optimized edition
+JBrowser 2.2.0 build notes
 
-Application ID: com.jbrowser.tv
-Version code: 8
-Version name: 2.1.0
-Minimum Android: 8.0 / API 26
-Compile SDK: 37.0 preview channel
+Browser engine: Mozilla GeckoView 160.0.20261116130455
+Android minimum: 8.0 / API 26
+Compile SDK: Android 17 Preview / API 37.0
 Target SDK: 36
 Java: 17
 Android Gradle Plugin: 9.1.1
 Gradle: 9.3.1
-GeckoView: 160.0.20261116130455
 
-APK outputs (one ABI per APK):
-- arm64-v8a
+APK outputs:
 - armeabi-v7a
-- x86
+- arm64-v8a
 - x86_64
 
-No universal APK is generated. Native libraries are compressed to reduce download size and extracted at installation, increasing installed storage usage. Release builds enable R8 and resource shrinking. GeckoView's native engine remains the primary size factor and is not meaningfully reduced by R8.
+No 32-bit x86 GeckoView native library is provided by the selected engine dependency, so that ABI is not built.
 
-GitHub Actions builds optimized signed release APKs with:
-  gradle --no-daemon clean assembleRelease
+R8 and resource shrinking are enabled for release APKs. Native GeckoView libraries are compressed in the APK download and extracted by Android during installation. This reduces download size, but not installed storage footprint.
 
-The workflow checks APK contents to ensure exactly one ABI is packaged in each output. Actual APK sizes will be printed in the workflow log after the first successful build.
+uBlock Origin is not bundled. The app offers an on-demand installation from the official Mozilla Add-ons XPI URL. GeckoView validates the Mozilla signature and asks the user to approve extension permissions. GeckoView's extension API compatibility is not identical to full Firefox; test the installed extension on target devices.
 
-The release is signed with a temporary runner debug key for testing. A persistent private signing key should be configured through GitHub Actions secrets before public distribution.
+The app caps tabs at three, lowers priority for inactive Gecko sessions, suspends inactive-tab media and limits per-frame pointer event dispatch. These target runtime memory and responsiveness, not native engine size.
 
-A full Android build and real-device tests have not been run in this authoring environment.
+The Android SDK / Gradle build must be run through GitHub Actions. This source bundle has not been compiled against an Android SDK in the authoring environment.

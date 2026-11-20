@@ -1,16 +1,23 @@
-# Downloading JBrowser 2.1.0
+# Build and install JBrowser 2.2.0
 
-The GitHub Actions workflow creates four separate APK artifacts and, on a `v*` tag, attaches them to a GitHub Release.
+## GitHub Actions
 
-Choose only one APK matching the TV's CPU ABI:
+1. Upload the complete project contents to the repository root, including the `.github` folder and `app` folder.
+2. Commit the files to `main`.
+3. Open the repository's Actions tab and wait for **Build JBrowser GeckoView Android TV APKs** to finish successfully.
+4. The run produces three artifacts: ARMv7, ARM64 and x86_64. Each downloaded artifact is a ZIP containing one APK.
 
-- **ARM64:** `JBrowser-2.1.0-Android-TV-arm64-v8a.apk` — most modern ARM64 Android TVs.
-- **ARMv7:** `JBrowser-2.1.0-Android-TV-armeabi-v7a.apk` — older 32-bit ARM Android TVs.
-- **x86:** `JBrowser-2.1.0-Android-TV-x86.apk` — 32-bit Intel/AMD Android devices.
-- **x86_64:** `JBrowser-2.1.0-Android-TV-x86_64.apk` — 64-bit Intel/AMD devices and emulators.
+## Which APK should I use?
 
-Check the device's ABI with AIDA64 or another hardware-information app. Do not assume that CPU model alone implies the OS ABI.
+The Sony TV tested by the project maintainer installed the ARMv7 variant. For that same device, download only **JBrowser-2.2.0-ARMv7** from the Actions artifacts and extract the APK.
 
-After the first build, check the file sizes in the GitHub Actions build log. No exact size is guaranteed before the workflow produces the APKs.
+For other Android TV devices, use the ABI reported by a system-information app. Do not choose an APK based only on the TV brand or resolution. 32-bit x86 is not built because the selected GeckoView package does not include it.
 
-The APKs are release variants with R8 and resource shrinking enabled, signed with a temporary GitHub runner debug key. Uninstall a differently signed older build if Android rejects an update. For repeatable upgrades, configure a persistent signing keystore as repository secrets; never commit keystore files or passwords to a public repository.
+## Install
+
+1. Copy the extracted APK to a USB drive or download it directly to the TV.
+2. Open the APK using a file manager.
+3. Allow that file manager to install unknown apps if Android asks.
+4. Install JBrowser.
+
+The current test workflow uses a temporary debug signing key. If Android reports a signature conflict with an older JBrowser build, uninstall the previous build before installing. This can erase its local browser data. Configure a persistent private signing key through GitHub Actions secrets before distributing production updates.

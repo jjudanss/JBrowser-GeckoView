@@ -1,4 +1,3 @@
-
 plugins {
     id 'com.android.application'
 }
@@ -11,8 +10,8 @@ android {
         applicationId 'com.jbrowser.tv'
         minSdk 26
         targetSdk 36
-        versionCode 8
-        versionName '2.1.0'
+        versionCode 10
+        versionName '2.2.0'
     }
 
     compileOptions {
@@ -20,11 +19,13 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 
+    // Produce one APK for each ABI that GeckoView 160 provides.
+    // There is no 32-bit x86 binary in this GeckoView build.
     splits {
         abi {
             enable true
             reset()
-            include 'arm64-v8a', 'armeabi-v7a', 'x86_64'
+            include 'armeabi-v7a', 'arm64-v8a', 'x86_64'
             universalApk false
         }
     }
@@ -32,19 +33,18 @@ android {
     buildTypes {
         debug {
         }
-
         release {
             minifyEnabled true
             shrinkResources true
             signingConfig signingConfigs.debug
-            proguardFiles getDefaultProguardFile(
-                'proguard-android-optimize.txt'
-            ), 'proguard-rules.pro'
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 
     packaging {
         jniLibs {
+            // Keep the downloaded APK compressed. Android extracts these .so files
+            // during installation; this reduces download size, not installed footprint.
             useLegacyPackaging = true
         }
     }
