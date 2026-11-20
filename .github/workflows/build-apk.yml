@@ -1,0 +1,87 @@
+
+name: Build JBrowser GeckoView Android TV APK
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-apk:
+    name: Build JBrowser 2.0 APK
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools'
+
+      - name: Install Android SDK 36
+        run: |
+          sdkmanager --install \
+            "platforms;android-36" \
+            "build-tools;36.0.0"
+
+      - name: Set up Gradle 8.13
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+
+      - name: Build JBrowser
+        run: gradle --no-daemon --stacktrace clean assembleDebug
+
+      - name: Prepare APK
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/app-debug.apk \
+            dist/JBrowser-2.0.0-Android-TV.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: JBrowser-2.0.0-Android-TV
+          path: dist/JBrowser-2.0.0-Android-TV.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish APK to GitHub Releases
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: JBrowser ${{ github.ref_name }} for Android TV
+          body: |
+            JBrowser 2.0.0 is a GeckoView-powered Android TV browser.
+
+            Features:
+            - Mozilla GeckoView engine.
+            - Compatible Firefox WebExtensions.
+            - Visible remote-controlled mouse pointer.
+            - Desktop browsing by default.
+            - Redesigned TV homepage.
+            - Built-in ad blocker removed.
+
+            Android 8.0 or newer required.
+            Debug-signed test build.
+          files: dist/JBrowser-2.0.0-Android-TV.apk
+          prerelease: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
