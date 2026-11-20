@@ -1,0 +1,45 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.jbrowser.tv'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId 'com.jbrowser.tv'
+        // GeckoView currently supports Android 8.0 (API 26) and newer.
+        minSdk 26
+        targetSdk 36
+        versionCode 7
+        versionName '2.0.0'
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    buildTypes {
+        debug {
+            // GitHub Actions produces an installable debug-signed APK for TV testing.
+        }
+        release {
+            minifyEnabled false
+            shrinkResources false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    packaging {
+        jniLibs {
+            // GeckoView includes native engine libraries for supported Android ABIs.
+            useLegacyPackaging = false
+        }
+    }
+}
+
+dependencies {
+    // Stable Mozilla GeckoView release (Firefox engine + WebExtensions APIs).
+    implementation 'org.mozilla.geckoview:geckoview:160.0.20261116130455'
+}

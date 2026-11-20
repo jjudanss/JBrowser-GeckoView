@@ -1,0 +1,23 @@
+JBrowser 2.0.0 — GeckoView edition
+
+Browser engine: Mozilla GeckoView 160.0.20261116130455 (stable)
+Application ID: com.jbrowser.tv
+Version code: 7
+Version name: 2.0.0
+Minimum Android: 8.0 / API 26
+Compile / target SDK: 36
+Java: 17
+
+Major migration:
+- WebView and AdBlockEngine removed.
+- GeckoView now provides the browser engine.
+- Built-in ad blocking and bundled filter lists removed.
+- Compatible Mozilla-signed Firefox WebExtensions can be installed and managed.
+- Chrome Web Store extensions are not supported.
+- Remote mouse pointer is controlled by the TV D-pad; OK clicks; Page/Channel Up/Down scroll.
+- Desktop user-agent and viewport are enabled by default.
+
+Build command: gradle --no-daemon clean assembleDebug
+APK: app/build/outputs/apk/debug/app-debug.apk
+
+The GitHub Actions workflow builds a debug-signed universal APK. Android SDK and Gradle are not installed in this authoring environment, so a full compile and real-TV test still need to be performed by GitHub Actions and on a physical device.
